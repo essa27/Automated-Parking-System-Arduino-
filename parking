@@ -1,0 +1,94 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <Servo.h>
+
+// Inițializare LCD (Adresa standard pentru LCD 16x2 cu I2C este 0x27)
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// Inițializare senzor ultrasonic
+#define TRIG_PIN 7
+#define ECHO_PIN 6
+
+// Inițializare servo motor pentru barieră
+Servo gateServo;
+#define SERVO_PIN 9
+
+// Număr maxim de locuri în parcare
+const int max_parking_spots = 5;
+int available_spots = max_parking_spots;
+
+// Pragul pentru detectarea unei mașini (în cm)
+const int car_detect_distance = 10;
+
+void setup() {
+    // Configurare LCD
+    lcd.begin();
+    lcd.backlight();
+    lcd.setCursor(0, 0);
+    lcd.print("Parking System");
+    delay(2000);
+    lcd.clear();
+
+    // Configurare senzor ultrasonic
+    pinMode(TRIG_PIN, OUTPUT);
+    pinMode(ECHO_PIN, INPUT);
+
+    // Configurare servo motor
+    gateServo.attach(SERVO_PIN);
+    gateServo.write(0);  // Bariera inițial închisă
+
+    // Afișare locuri inițiale
+    updateLCD();
+}
+
+void loop() {
+    int distance = getDistance();
+
+    if (distance > 0 && distance < car_detect_distance) {
+        if (available_spots > 0) {
+            openGate();
+            delay(2000);
+            closeGate();
+            available_spots--;
+        } else {
+            lcd.setCursor(0, 1);
+            lcd.print("Parking Full!");
+            delay(2000);
+        }
+    }
+
+    updateLCD();
+    delay(1000);
+}
+
+// Funcție pentru a măsura distanța cu senzorul ultrasonic
+int getDistance() {
+    digitalWrite(TRIG_PIN, LOW);
+    delayMicroseconds(2);
+    digitalWrite(TRIG_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_PIN, LOW);
+
+    long duration = pulseIn(ECHO_PIN, HIGH);
+    int distance = duration * 0.034 / 2;
+    return distance;
+}
+
+// Funcție pentru deschiderea barierei
+void openGate() {
+    gateServo.write(90);
+}
+
+// Funcție pentru închiderea barierei
+void closeGate() {
+    gateServo.write(0);
+}
+
+// Funcție pentru actualizarea afișajului LCD
+void updateLCD() {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Available Spots:");
+    lcd.setCursor(0, 1);
+    lcd.print(available_spots);
+}
